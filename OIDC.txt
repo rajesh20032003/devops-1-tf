@@ -1,0 +1,165 @@
+The Problem OIDC Solves:
+WITHOUT OIDC (old way — still used in many companies):
+
+1. Create IAM user in AWS
+2. Generate Access Key + Secret Key
+3. Store in GitHub Secrets:
+   AWS_ACCESS_KEY_ID=AKIA...
+   AWS_SECRET_ACCESS_KEY=xyz...
+4. GitHub Actions uses these keys
+
+PROBLEMS:
+  ❌ Static credentials — never expire
+  ❌ If GitHub gets hacked → AWS gets hacked
+  ❌ Keys need manual rotation
+  ❌ Hard to audit who used the key
+  ❌ Security teams hate this
+  ❌ Goes against AWS security best practices
+
+What OIDC Does:
+WITH OIDC (modern way):
+
+No static keys anywhere ✅
+
+Flow:
+1. GitHub Actions job starts
+2. GitHub generates a short-lived JWT token
+   (valid for only that job run — maybe 5 mins)
+3. GitHub sends JWT to AWS saying:
+   "I am github.com/rajesh20032003/devops-1-infra
+    running on main branch
+    here is my signed proof"
+4. AWS verifies the JWT signature with GitHub
+5. AWS says "ok I trust GitHub, here's a 
+   temporary credential valid for 1 hour"
+6. Terraform uses that temporary credential
+7. Job finishes → credential expires automatically
+
+BENEFITS:
+  ✅ No static credentials anywhere
+  ✅ Credentials auto-expire after 1 hour
+  ✅ Each job gets unique credentials
+  ✅ If GitHub gets hacked → credentials already expired
+  ✅ Full audit trail in AWS CloudTrail
+  ✅ Industry standard — AWS recommends this
+
+Visual flow:
+GitHub Actions Job
+       │
+       │ 1. "I need AWS access"
+       ▼
+GitHub OIDC Provider
+       │
+       │ 2. Issues JWT token:
+       │    {
+       │      "sub": "repo:rajesh20032003/devops-1-infra:ref:refs/heads/main",
+       │      "aud": "sts.amazonaws.com",
+       │      "exp": <5 minutes from now>
+       │    }
+       │
+       ▼
+AWS STS (Security Token Service)
+       │
+       │ 3. Verifies JWT signature
+       │    Checks trust policy:
+       │    "Is this from rajesh's repo? ✅"
+       │    "Is this main branch? ✅"
+       │
+       │ 4. Returns temporary credentials:
+       │    Access Key (expires in 1 hour)
+       │    Secret Key (expires in 1 hour)  
+       │    Session Token (expires in 1 hour)
+       │
+       ▼
+Terraform runs with temporary credentials
+       │
+       │ 5. Job finishes
+       ▼
+Credentials expire automatically ✅
+
+OIDC vs Old way — Industry comparison:
+YOUR APPROACH (OIDC):
+  GitHub Actions → OIDC → AWS temporary creds
+  
+INDUSTRY STANDARD:
+  
+  Level 1 (small/old companies):
+    Static IAM keys in GitHub Secrets ❌
+    Still very common unfortunately
+    
+  Level 2 (modern companies):
+    OIDC → temporary credentials ✅
+    What you're implementing
+    
+  Level 3 (enterprise):
+    OIDC + permission boundaries
+    OIDC + SCPs (Service Control Policies)
+    OIDC + separate AWS accounts per environment
+    
+  Verdict: You're implementing Level 2
+           which is current best practice ✅
+
+What we'll create in AWS:
+1. OIDC Identity Provider
+   → Tells AWS to trust GitHub's JWT tokens
+   → Like adding GitHub as a trusted login method
+
+2. IAM Role (github-actions-terraform-role)
+   → What GitHub Actions will assume
+   → Has permissions to create AWS resources
+   
+3. Trust Policy on the Role
+   → Only THIS specific repo can assume this role
+   → Only main branch can assume this role
+   → Extra security — not any GitHub repo
+   
+4. Permission Policy on the Role
+   → What Terraform is allowed to do
+   → Create VPC, EKS, EC2, RDS etc
+
+Step 1 — Create OIDC Provider in AWS Console:
+1. Go to AWS Console
+2. IAM → Identity Providers
+3. Click "Add Provider"
+4. Select "OpenID Connect"
+
+5. Fill in:
+   Provider URL: https://token.actions.githubusercontent.com
+   Click "Get thumbprint" (auto fills)
+   
+   Audience: sts.amazonaws.com
+
+6. Click "Add Provider"
+Done! Now AWS knows to trust GitHub's tokens.
+
+Step 2 — Create IAM Role:
+1. IAM → Roles → Create Role
+2. Select "Web Identity"
+3. Identity Provider: 
+   token.actions.githubusercontent.com
+4. Audience: sts.amazonaws.com
+5. Click Next
+
+6. Add condition (IMPORTANT — restricts to YOUR repo):
+   Condition key: 
+     token.actions.githubusercontent.com:sub
+   Condition: StringLike
+   Value: 
+     repo:rajesh20032003/devops-1-infra:*
+
+7. Click Next — Add permissions:
+   For now: AdministratorAccess
+   (we'll restrict later — fine for POC)
+   
+   Industry note: 
+   Real companies use least privilege
+   Only permissions Terraform actually needs
+   
+8. Role name: github-actions-terraform-role
+9. Create Role
+
+Step 3 — Note down Role ARN:
+After creating role you'll see:
+arn:aws:iam::760302898980:role/github-actions-terraform-role
+
+Save this — we'll use it in GitHub Actions workflow

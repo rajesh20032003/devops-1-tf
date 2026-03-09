@@ -1,0 +1,15 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.tfstate.lock.info
+*.tfvars.backup
+tfplan
+plan_output.txt
+infra-outputs.json
+.DS_Store
+
+# Commit these:
+# .terraform.lock.hcl  ✅
+# all .tf files        ✅
+# terraform.tfvars     ✅
