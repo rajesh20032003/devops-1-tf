@@ -10,8 +10,6 @@ echo "=== Starting EC2 bootstrap $(date) ==="
 # ── Variables ─────────────────────────────────────────────────
 AWS_REGION="ap-south-1"
 ECR_REGISTRY="760302898980.dkr.ecr.ap-south-1.amazonaws.com"
-PROJECT="micro-dash"
-IMAGE_TAG="latest"
 USER_SECRET="micro-dash/dev/user-service/db"
 ORDER_SECRET="micro-dash/dev/order-service/db"
 
@@ -60,10 +58,11 @@ aws ecr get-login-password --region $AWS_REGION | \
 
 # ── Pull images ───────────────────────────────────────────────
 echo "=== Pulling images from ECR ==="
-docker pull $ECR_REGISTRY/$PROJECT/frontend:$IMAGE_TAG
-docker pull $ECR_REGISTRY/$PROJECT/gateway:$IMAGE_TAG
-docker pull $ECR_REGISTRY/$PROJECT/user-service:$IMAGE_TAG
-docker pull $ECR_REGISTRY/$PROJECT/order-service:$IMAGE_TAG
+IMAGE_TAG="v5.0.5"
+docker pull $ECR_REGISTRY/frontend:$IMAGE_TAG
+docker pull $ECR_REGISTRY/gateway:$IMAGE_TAG
+docker pull $ECR_REGISTRY/user-service:$IMAGE_TAG
+docker pull $ECR_REGISTRY/order-service:$IMAGE_TAG
 
 # ── Get DB credentials from Secrets Manager ───────────────────
 echo "=== Fetching DB credentials ==="
