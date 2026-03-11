@@ -30,7 +30,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "user_db" {
   identifier     = "${var.project}-${var.environment}-user-db"
   engine         = "postgres"
-  engine_version = "16.1"
+  engine_version = "16.6"
   instance_class = "db.t3.micro"
 
   db_name  = "usersdb"
@@ -72,7 +72,7 @@ resource "aws_db_instance" "user_db" {
 resource "aws_db_instance" "order_db" {
   identifier     = "${var.project}-${var.environment}-order-db"
   engine         = "postgres"
-  engine_version = "16.1"
+  engine_version = "16.6"
   instance_class = "db.t3.micro"
 
   db_name  = "ordersdb"
