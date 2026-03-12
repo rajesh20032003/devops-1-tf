@@ -23,6 +23,7 @@ provider "aws" {
       project   = "micro-dash"
       managedby = "terraform"
       owner     = "rajesh"
+      id = "001"
     }
   }
 }
