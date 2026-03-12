@@ -32,6 +32,7 @@ resource "aws_db_instance" "user_db" {
   engine         = "postgres"
   engine_version = "16.6"
   instance_class = "db.t3.micro"
+  
 
   db_name  = "usersdb"
   username = "appuser"
@@ -107,6 +108,7 @@ resource "aws_db_instance" "order_db" {
 resource "aws_secretsmanager_secret" "user_db" {
   name        = "${var.project}/${var.environment}/user-service/db"
   description = "PostgreSQL credentials for user-service"
+  recovery_window_in_days = 0
 
   tags = {
     Service = "user-service"
@@ -130,6 +132,7 @@ resource "aws_secretsmanager_secret_version" "user_db" {
 resource "aws_secretsmanager_secret" "order_db" {
   name        = "${var.project}/${var.environment}/order-service/db"
   description = "PostgreSQL credentials for order-service"
+  recovery_window_in_days = 0
 
   tags = {
     Service = "order-service"
