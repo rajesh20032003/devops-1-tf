@@ -39,7 +39,7 @@ provider "aws" {
     tags = {
       project     = "micro-dash"
       environment = "dev"
-      managedby   = "terraform!"
+      managedby   = "terraform"
       owner       = "rajesh"
     }
   }
