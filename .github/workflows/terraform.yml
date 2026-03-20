@@ -31,11 +31,10 @@ jobs:
   terraform-dev:
     name: Terraform Dev
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
 
     defaults:
       run:
-        working-directory: tf/environments/dev
+        working-directory: environments/dev
 
     steps:
       - name: Checkout
@@ -87,7 +86,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('tf/environments/dev/plan_output.txt', 'utf8');
+            const plan = fs.readFileSync('environments/dev/plan_output.txt', 'utf8');
             const maxLength = 65000;
             const truncated = plan.length > maxLength
               ? plan.substring(0, maxLength) + '\n... truncated'
@@ -118,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: infra-outputs-dev
-          path: tf/environments/dev/tf-outputs.json
+          path: environments/dev/tf-outputs.json
           retention-days: 30
 
   terraform-destroy:
@@ -130,7 +129,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: tf/environments/dev
+        working-directory: environments/dev
 
     steps:
       - uses: actions/checkout@v4
