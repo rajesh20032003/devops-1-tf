@@ -4,19 +4,23 @@ on:
   push:
     branches: [main]
     paths:
-      - 'environments/**'
-      - 'modules/**'
+      - 'tf/environments/**'
+      - 'tf/modules/**'
   pull_request:
     branches: [main]
     paths:
-      - 'environments/**'
-      - 'modules/**'
+      - 'tf/environments/**'
+      - 'tf/modules/**'
   workflow_dispatch:
     inputs:
-      destroy:
-        description: 'Set true to destroy infrastructure'
-        required: false
-        default: 'false'
+      action:
+        description: 'apply or destroy'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
   id-token: write
@@ -24,7 +28,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # ── Dev Plan + Apply ────────────────────────────────────────
   terraform-dev:
     name: Terraform Dev
     runs-on: ubuntu-latest
@@ -32,7 +35,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: environments/dev   # ← UPDATED!
+        working-directory: tf/environments/dev
 
     steps:
       - name: Checkout
@@ -84,7 +87,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('environments/dev/plan_output.txt', 'utf8');
+            const plan = fs.readFileSync('tf/environments/dev/plan_output.txt', 'utf8');
             const maxLength = 65000;
             const truncated = plan.length > maxLength
               ? plan.substring(0, maxLength) + '\n... truncated'
@@ -97,30 +100,37 @@ jobs:
             });
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: |
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform apply -auto-approve tfplan
 
       - name: Terraform Output
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform output -json > ../../infra-outputs.json
+        if: |
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        run: terraform output -json > tf-outputs.json
 
       - name: Upload Outputs
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: |
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         uses: actions/upload-artifact@v4
         with:
           name: infra-outputs-dev
-          path: infra-outputs.json
+          path: tf/environments/dev/tf-outputs.json
           retention-days: 30
 
-  # ── Destroy (manual trigger only) ──────────────────────────
   terraform-destroy:
     name: Terraform Destroy Dev
     runs-on: ubuntu-latest
-    if: github.event.inputs.destroy == 'true'
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.action == 'destroy'
 
     defaults:
       run:
-        working-directory: environments/dev
+        working-directory: tf/environments/dev
 
     steps:
       - uses: actions/checkout@v4
@@ -145,4 +155,7 @@ jobs:
             -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
 
       - name: Terraform Destroy
-        run: terraform destroy -var-file="terraform.tfvars" -auto-approve
+        run: |
+          terraform destroy \
+            -var-file="terraform.tfvars" \
+            -auto-approve
